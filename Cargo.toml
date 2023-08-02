@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.72"
 bedrs = "0.0.31"
+clap = { version = "4.3.19", features = ["derive"] }
 gtftools = "0.1.9"
 hashbrown = "0.14.0"
 noodles = { version = "0.46.0", features = ["bgzf", "fasta", "core"] }
