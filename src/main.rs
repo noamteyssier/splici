@@ -15,7 +15,7 @@ fn main() -> Result<()> {
             output,
             extension,
         } => {
-            functions::run(&input, &fasta, output, extension)?;
+            functions::run_introns(&input, &fasta, output, extension)?;
         }
     }
     Ok(())

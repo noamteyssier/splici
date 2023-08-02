@@ -100,7 +100,7 @@ fn merge_introns(
         .collect::<HashMap<usize, GenomicIntervalSet<usize>>>()
 }
 
-pub fn run(
+pub fn run_introns(
     gtf_path: &str,
     fasta_path: &str,
     output_path: Option<String>,
