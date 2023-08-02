@@ -1,0 +1,13 @@
+[package]
+name = "splici"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.72"
+bedrs = "0.0.31"
+gtftools = "0.1.9"
+hashbrown = "0.14.0"
+noodles = { version = "0.46.0", features = ["bgzf", "fasta", "core"] }
