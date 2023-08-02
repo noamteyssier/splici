@@ -1,5 +1,11 @@
+mod cli;
+mod functions;
 mod types;
+mod utils;
+use utils::{flip_map, interval_to_region};
 use bedrs::{GenomicIntervalSet, Container, Coordinates, Merge, Internal, GenomicInterval};
+use clap::Parser;
+use cli::Cli;
 use hashbrown::HashMap;
 use noodles::{fasta::{fai, IndexedReader}, core::{Region, Position, region}};
 use std::{fs::File, io::{BufReader, BufRead}, hash::Hash, str::from_utf8};
@@ -33,19 +39,6 @@ fn parse_exons<R: BufRead>(
     Ok(transcript_records)
 }
 
-/// Flips the K, V pairs in a HashMap
-/// Used to reverse the name -> idx mappings to idx -> name
-fn flip_map<K, V>(map: &HashMap<K, V>) -> HashMap<V, K> 
-where
-    K: Eq + Hash + Clone,
-    V: Eq + Hash + Clone,
-{
-    let mut flipped = HashMap::new();
-    for (key, value) in map.iter() {
-        flipped.insert(value.clone(), key.clone());
-    }
-    flipped
-}
 
 fn populate_introns(transcript_records: &HashMap<usize, Vec<ExonRecord>>, extension: Option<usize>) -> HashMap<usize, Vec<GenomicInterval<usize>>> {
     transcript_records
@@ -120,6 +113,7 @@ fn genomic_iv_to_region(
 }
 
 fn main() -> Result<()> {
+    let cli = Cli::parse();
     let fasta_path = "data/Homo_sapiens.GRCh38.dna.primary_assembly.fa";
     let index_path = "data/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai";
     let gtf_path = "data/subset.gtf";
@@ -187,7 +181,7 @@ fn main() -> Result<()> {
         let full_gene_name = gene_name_map.get(gene).unwrap();
         let full_gene_name = from_utf8(full_gene_name)?;
         intron_set.records().iter().enumerate().for_each(|(idx, x)| {
-            let region = genomic_iv_to_region(x, &genome_name_map).unwrap();
+            let region = interval_to_region(x, &genome_name_map).unwrap();
             let query = fasta.query(&region).unwrap();
             let seq = from_utf8(query.sequence().as_ref()).unwrap();
             print!(">{full_gene_name}-I.{idx}\n{seq}\n");
