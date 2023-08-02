@@ -1,12 +1,12 @@
-use std::{hash::Hash, str::from_utf8};
 use anyhow::{bail, Result};
-use bedrs::{GenomicInterval, Coordinates};
+use bedrs::{Coordinates, GenomicInterval};
 use hashbrown::HashMap;
-use noodles::core::{Region, Position};
+use noodles::core::{Position, Region};
+use std::{hash::Hash, str::from_utf8};
 
 /// Flips the K, V pairs in a HashMap
 /// Used to reverse the name -> idx mappings to idx -> name
-pub fn flip_map<K, V>(map: &HashMap<K, V>) -> HashMap<V, K> 
+pub fn flip_map<K, V>(map: &HashMap<K, V>) -> HashMap<V, K>
 where
     K: Eq + Hash + Clone,
     V: Eq + Hash + Clone,
@@ -17,7 +17,6 @@ where
     }
     flipped
 }
-
 
 /// Converts a `GenomicInterval` to a `Region`
 pub fn interval_to_region(

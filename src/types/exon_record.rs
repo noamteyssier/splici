@@ -3,7 +3,6 @@ use bedrs::GenomicInterval;
 use gtftools::GtfRecord;
 use hashbrown::HashMap;
 
-
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct ExonRecord {
     genome_id: usize,
@@ -23,7 +22,13 @@ impl Into<GenomicInterval<usize>> for &ExonRecord {
     }
 }
 impl ExonRecord {
-    pub fn new(genome_id: usize, start: usize, end: usize, gene_id: usize, transcript_id: usize) -> Self {
+    pub fn new(
+        genome_id: usize,
+        start: usize,
+        end: usize,
+        gene_id: usize,
+        transcript_id: usize,
+    ) -> Self {
         Self {
             genome_id,
             start,
@@ -34,12 +39,11 @@ impl ExonRecord {
     }
 
     pub fn from_gtf_record(
-        record: GtfRecord, 
+        record: GtfRecord,
         genome_map: &mut HashMap<Vec<u8>, usize>,
         gene_map: &mut HashMap<Vec<u8>, usize>,
         transcript_map: &mut HashMap<Vec<u8>, usize>,
     ) -> Result<Self> {
-
         // insert gene_id into gene_map
         let gene_id = if let Some(gene_id) = record.attribute.gene_id {
             gene_id
@@ -75,7 +79,7 @@ impl ExonRecord {
         let transcript_id = transcript_map[&transcript_id];
         let start = record.start;
         let end = record.end;
-        
+
         // build GeneRecord
         Ok(Self::new(genome_id, start, end, gene_id, transcript_id))
     }
