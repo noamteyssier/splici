@@ -1,10 +1,17 @@
-use std::{fs::File, io::{BufReader, BufRead}, str::from_utf8};
+use crate::{
+    types::ExonRecord,
+    utils::{flip_map, interval_to_region},
+};
 use anyhow::Result;
-use bedrs::{GenomicInterval, GenomicIntervalSet, Container, Merge, Internal, Coordinates};
+use bedrs::{Container, Coordinates, GenomicInterval, GenomicIntervalSet, Internal, Merge};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use noodles::fasta::{fai, IndexedReader};
-use crate::{utils::{flip_map, interval_to_region}, types::ExonRecord};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    str::from_utf8,
+};
 
 /// Parse the exons from the GTF file and return a HashMap of transcript id to
 /// a Vec of `ExonRecords`
@@ -99,7 +106,6 @@ pub fn run(
     output_path: Option<String>,
     extension: Option<usize>,
 ) -> Result<()> {
-
     let index_file_path = format!("{fasta_path}.fai");
     let index = fai::read(index_file_path)?;
     let reader = File::open(fasta_path).map(BufReader::new)?;
