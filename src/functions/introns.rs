@@ -124,7 +124,7 @@ impl Splici {
     {
         self.merged_introns
             .keys()
-            .for_each(|gene_id| self.write_introns_for(*gene_id, fasta, writer))
+            .for_each(|gene_id| self.write_introns_for(*gene_id, fasta, writer));
     }
 
     /// Writes all concatenated exon transcripts to stdout
@@ -135,7 +135,7 @@ impl Splici {
     {
         self.transcript_records
             .keys()
-            .for_each(|tx| self.write_exons_for(*tx, fasta, writer))
+            .for_each(|tx| self.write_exons_for(*tx, fasta, writer));
     }
 
     /// Writes the specific intronic region sequences for a given gene to stdout
@@ -160,7 +160,7 @@ impl Splici {
                 let seq = from_utf8(query.sequence().as_ref()).unwrap();
                 write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")
                     .expect("Could not write intron sequence");
-            })
+            });
     }
 
     /// Writes the specific exon transcripts for a given transcript to stdout
