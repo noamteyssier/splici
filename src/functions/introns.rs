@@ -63,7 +63,7 @@ impl Splici {
         }
     }
 
-    /// Parses the exons from a GTF file into a HashMap of transcript_id to a Vec of ExonRecords
+    /// Parses the exons from a GTF file into a `HashMap` of `transcript_id` to a Vec of `ExonRecords`
     pub fn parse_exons<R>(&mut self, reader: &mut GtfReader<R>) -> Result<()>
     where
         R: BufRead,
@@ -80,7 +80,7 @@ impl Splici {
 
     /// Flips the genome, gene, and transcript maps
     /// This is necessary because we need O(1) lookup in the opposite direction
-    /// i.e. genome_id -> genome_name instead of genome_name -> genome_id
+    /// i.e. `genome_id` -> `genome_name` instead of `genome_name` -> `genome_id`
     fn flip_maps(&mut self) {
         self.genome_map = flip_map(&self.genome_names);
         self.gene_map = flip_map(&self.gene_names);
@@ -96,12 +96,12 @@ impl Splici {
             .map(|(gene_id, exon_vec)| (gene_id, build_exon_set(exon_vec)))
             .map(|(gene_id, exon_set)| (gene_id, get_introns(exon_set, self.extension)))
             .fold(HashMap::new(), |mut gene_introns, (gene_id, intron_set)| {
-                intron_set.iter().for_each(|intron| {
+                for intron in &intron_set {
                     gene_introns
                         .entry(gene_id)
                         .or_insert_with(Vec::new)
                         .push(*intron);
-                });
+                }
                 gene_introns
             });
     }
@@ -111,7 +111,7 @@ impl Splici {
         self.merged_introns = self
             .gene_introns
             .iter()
-            .map(|(gene_id, intron_vec)| (gene_id, build_interval_set(&intron_vec)))
+            .map(|(gene_id, intron_vec)| (gene_id, build_interval_set(intron_vec)))
             .map(|(gene_id, intron_set)| (*gene_id, merge_interval_set(intron_set)))
             .collect();
     }
@@ -191,7 +191,7 @@ impl Splici {
             .get(&tx)
             .unwrap()
             .iter()
-            .map(|x| x.into())
+            .map(std::convert::Into::into)
             .collect();
         exon_set.sort();
         exon_set

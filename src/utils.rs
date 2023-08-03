@@ -7,7 +7,7 @@ use std::{hash::Hash, io::BufRead, str::from_utf8};
 
 use crate::types::ExonRecord;
 
-/// Flips the K, V pairs in a HashMap
+/// Flips the K, V pairs in a `HashMap`
 /// Used to reverse the name -> idx mappings to idx -> name
 pub fn flip_map<K, V>(map: &HashMap<K, V>) -> HashMap<V, K>
 where
@@ -44,14 +44,14 @@ pub fn get_gene(exon_set: &[ExonRecord]) -> usize {
 pub fn build_exon_set(exon_set: &[ExonRecord]) -> GenomicIntervalSet<usize> {
     let mut exon_set = exon_set
         .iter()
-        .map(|exon| exon.into())
+        .map(std::convert::Into::into)
         .collect::<GenomicIntervalSet<usize>>();
     exon_set.sort();
     exon_set
 }
 
 pub fn build_interval_set(vec: &[GenomicInterval<usize>]) -> GenomicIntervalSet<usize> {
-    let mut set = GenomicIntervalSet::from_iter(vec.iter().cloned());
+    let mut set = GenomicIntervalSet::from_iter(vec.iter().copied());
     set.sort();
     set
 }
@@ -77,12 +77,12 @@ pub fn merge_interval_set(giv_set: GenomicIntervalSet<usize>) -> GenomicInterval
         .merge()
         .expect("Could not merge interval set")
         .intervals()
-        .into_iter()
-        .cloned()
+        .iter()
+        .copied()
         .collect()
 }
 
-/// Parse the exons from the GTF file and return a HashMap of transcript id to
+/// Parse the exons from the GTF file and return a `HashMap` of transcript id to
 /// a Vec of `ExonRecords`
 pub fn parse_exons<R: BufRead>(
     reader: &mut GtfReader<R>,
