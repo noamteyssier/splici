@@ -59,6 +59,7 @@ impl Splici {
         }
     }
 
+    /// Parses the exons from a GTF file into a HashMap of transcript_id to a Vec of ExonRecords
     pub fn parse_exons<R>(&mut self, reader: &mut GtfReader<R>) -> Result<()>
     where
         R: BufRead,
@@ -73,12 +74,16 @@ impl Splici {
         Ok(())
     }
 
+    /// Flips the genome, gene, and transcript maps
+    /// This is necessary because we need O(1) lookup in the opposite direction
+    /// i.e. genome_id -> genome_name instead of genome_name -> genome_id
     fn flip_maps(&mut self) {
         self.genome_map = flip_map(&self.genome_names);
         self.gene_map = flip_map(&self.gene_names);
         self.transcript_map = flip_map(&self.transcript_names);
     }
 
+    /// Parses the introns set for each transcript
     pub fn parse_introns(&mut self) {
         self.gene_introns = self
             .transcript_records
@@ -97,6 +102,7 @@ impl Splici {
             });
     }
 
+    /// Merges the overlapping intronic regions for each gene
     pub fn merge_introns(&mut self) {
         self.merged_introns = self
             .gene_introns
@@ -106,18 +112,21 @@ impl Splici {
             .collect();
     }
 
+    /// Writes all intronic region sequences to stdout
     fn write_introns<R: BufReadSeek>(&self, fasta: &mut IndexedReader<R>) {
         self.merged_introns
             .keys()
             .for_each(|gene_id| self.write_introns_for(*gene_id, fasta))
     }
 
+    /// Writes all concatenated exon transcripts to stdout
     fn write_exons<R: BufReadSeek>(&self, fasta: &mut IndexedReader<R>) {
         self.transcript_records
             .keys()
             .for_each(|tx| self.write_exons_for(*tx, fasta))
     }
 
+    /// Writes the specific intronic region sequences for a given gene to stdout
     fn write_introns_for<R: BufReadSeek>(&self, gene_id: usize, fasta: &mut IndexedReader<R>) {
         let intron_set = self.merged_introns.get(&gene_id).unwrap();
         let gene_name = self
@@ -137,6 +146,7 @@ impl Splici {
             })
     }
 
+    /// Writes the specific exon transcripts for a given transcript to stdout
     fn write_exons_for<R: BufReadSeek>(&self, tx: usize, fasta: &mut IndexedReader<R>) {
         let transcript_name = self
             .get_transcript_name(tx)
@@ -147,10 +157,12 @@ impl Splici {
         println!("{}", from_utf8(&transcript_seq).unwrap());
     }
 
+    /// Convenience function to get the transcript name from the transcript id
     fn get_transcript_name(&self, tx: usize) -> Option<&str> {
         self.transcript_map.get(&tx).map(|x| from_utf8(x).unwrap())
     }
 
+    /// Convenience function to get the exon set from the transcript id
     fn get_exon_set(&self, tx: usize) -> GenomicIntervalSet<usize> {
         let mut exon_set: GenomicIntervalSet<usize> = self
             .transcript_records
@@ -163,6 +175,7 @@ impl Splici {
         exon_set
     }
 
+    /// Builds the transcript sequence from the exon set
     fn build_transcript_sequence<R: BufReadSeek>(
         &self,
         exon_set: GenomicIntervalSet<usize>,
@@ -170,21 +183,12 @@ impl Splici {
     ) -> Vec<u8> {
         let mut transcript_seq: Vec<u8> = Vec::new();
         exon_set.records().iter().for_each(|exon| {
-            let exon_seq = self.get_exon_sequence(exon, fasta);
-            transcript_seq.extend(&exon_seq);
+            let region = interval_to_region(exon, &self.genome_map).unwrap();
+            let query = fasta.query(&region).unwrap();
+            let seq = query.sequence().as_ref();
+            transcript_seq.extend(seq);
         });
         transcript_seq
-    }
-
-    fn get_exon_sequence<R: BufReadSeek>(
-        &self,
-        exon: &GenomicInterval<usize>,
-        fasta: &mut IndexedReader<R>,
-    ) -> Vec<u8> {
-        let region =
-            interval_to_region(exon, &self.genome_map).expect("Could not get exon sequence");
-        let query = fasta.query(&region).expect("Could not query fasta");
-        query.sequence().as_ref().to_vec()
     }
 }
 
