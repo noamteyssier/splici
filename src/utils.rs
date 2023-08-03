@@ -84,7 +84,8 @@ pub fn parse_exons<R: BufRead>(
     transcript_id_map: &mut NameMap,
 ) -> Result<HashMap<usize, Vec<ExonRecord>>> {
     let mut transcript_records = HashMap::new();
-    while let Some(Ok(record)) = reader.next() {
+    while let Some(record) = reader.next() {
+        let record = record?;
         if record.feature == b"exon" {
             let exon_record =
                 ExonRecord::from_gtf_record(record, genome_id_map, gene_id_map, transcript_id_map)?;
