@@ -128,7 +128,7 @@ impl Splici {
     }
 
     /// Writes all concatenated exon transcripts to stdout
-    fn write_exons<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W) 
+    fn write_exons<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W)
     where
         R: BufReadSeek,
         W: Write,
@@ -139,7 +139,7 @@ impl Splici {
     }
 
     /// Writes the specific intronic region sequences for a given gene to stdout
-    fn write_introns_for<R, W>(&self, gene_id: usize, fasta: &mut IndexedReader<R>, writer: &mut W) 
+    fn write_introns_for<R, W>(&self, gene_id: usize, fasta: &mut IndexedReader<R>, writer: &mut W)
     where
         R: BufReadSeek,
         W: Write,
@@ -158,7 +158,8 @@ impl Splici {
                 let region = interval_to_region(x, &self.genome_map).unwrap();
                 let query = fasta.query(&region).unwrap();
                 let seq = from_utf8(query.sequence().as_ref()).unwrap();
-                write!(writer, ">{gene_name}-I.{idx}\n{seq}\n").expect("Could not write intron sequence");
+                write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")
+                    .expect("Could not write intron sequence");
             })
     }
 
@@ -174,7 +175,8 @@ impl Splici {
         let exon_set = self.get_exon_set(tx);
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
         let transcript_str = from_utf8(&transcript_seq).unwrap();
-        write!(writer, ">{transcript_name}\n{transcript_str}\n").expect("Could not write exon sequence");
+        write!(writer, ">{transcript_name}\n{transcript_str}\n")
+            .expect("Could not write exon sequence");
     }
 
     /// Convenience function to get the transcript name from the transcript id

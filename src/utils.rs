@@ -56,7 +56,10 @@ pub fn build_interval_set(vec: &[GenomicInterval<usize>]) -> GenomicIntervalSet<
     set
 }
 
-pub fn get_introns(giv_set: GenomicIntervalSet<usize>, extension: Option<usize>) -> Vec<GenomicInterval<usize>> {
+pub fn get_introns(
+    giv_set: GenomicIntervalSet<usize>,
+    extension: Option<usize>,
+) -> Vec<GenomicInterval<usize>> {
     giv_set
         .internal()
         .expect("could not parse introns")
