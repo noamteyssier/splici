@@ -1,12 +1,15 @@
 use crate::{
     types::ExonRecord,
-    utils::{build_interval_set, flip_map, get_gene, get_introns, interval_to_region, build_exon_set, merge_interval_set, parse_exons},
+    utils::{
+        build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
+        merge_interval_set, parse_exons,
+    },
 };
 use anyhow::Result;
 use bedrs::{Container, GenomicInterval, GenomicIntervalSet};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
-use noodles::fasta::{fai, IndexedReader, io::BufReadSeek};
+use noodles::fasta::{fai, io::BufReadSeek, IndexedReader};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -95,14 +98,11 @@ impl Splici {
     }
 
     pub fn merge_introns(&mut self) {
-        self.merged_introns = self.gene_introns
+        self.merged_introns = self
+            .gene_introns
             .iter()
-            .map(|(gene_id, intron_vec)| {
-                (gene_id, build_interval_set(&intron_vec))
-            })
-            .map(|(gene_id, intron_set)| {
-                (*gene_id, merge_interval_set(intron_set))
-            })
+            .map(|(gene_id, intron_vec)| (gene_id, build_interval_set(&intron_vec)))
+            .map(|(gene_id, intron_set)| (*gene_id, merge_interval_set(intron_set)))
             .collect();
     }
 
@@ -120,7 +120,11 @@ impl Splici {
 
     fn write_introns_for<R: BufReadSeek>(&self, gene_id: usize, fasta: &mut IndexedReader<R>) {
         let intron_set = self.merged_introns.get(&gene_id).unwrap();
-        let gene_name = self.gene_map.get(&gene_id).map(|x| from_utf8(x).unwrap()).unwrap();
+        let gene_name = self
+            .gene_map
+            .get(&gene_id)
+            .map(|x| from_utf8(x).unwrap())
+            .unwrap();
         intron_set
             .records()
             .iter()
@@ -134,7 +138,9 @@ impl Splici {
     }
 
     fn write_exons_for<R: BufReadSeek>(&self, tx: usize, fasta: &mut IndexedReader<R>) {
-        let transcript_name = self.get_transcript_name(tx).expect("Could not get transcript name");
+        let transcript_name = self
+            .get_transcript_name(tx)
+            .expect("Could not get transcript name");
         let exon_set = self.get_exon_set(tx);
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
         println!(">{}", transcript_name);
@@ -142,13 +148,12 @@ impl Splici {
     }
 
     fn get_transcript_name(&self, tx: usize) -> Option<&str> {
-        self.transcript_map
-            .get(&tx)
-            .map(|x| from_utf8(x).unwrap())
+        self.transcript_map.get(&tx).map(|x| from_utf8(x).unwrap())
     }
 
     fn get_exon_set(&self, tx: usize) -> GenomicIntervalSet<usize> {
-        let mut exon_set: GenomicIntervalSet<usize> = self.transcript_records
+        let mut exon_set: GenomicIntervalSet<usize> = self
+            .transcript_records
             .get(&tx)
             .unwrap()
             .iter()
@@ -158,7 +163,11 @@ impl Splici {
         exon_set
     }
 
-    fn build_transcript_sequence<R: BufReadSeek>(&self, exon_set: GenomicIntervalSet<usize>, fasta: &mut IndexedReader<R>) -> Vec<u8> {
+    fn build_transcript_sequence<R: BufReadSeek>(
+        &self,
+        exon_set: GenomicIntervalSet<usize>,
+        fasta: &mut IndexedReader<R>,
+    ) -> Vec<u8> {
         let mut transcript_seq: Vec<u8> = Vec::new();
         exon_set.records().iter().for_each(|exon| {
             let exon_seq = self.get_exon_sequence(exon, fasta);
@@ -167,12 +176,16 @@ impl Splici {
         transcript_seq
     }
 
-    fn get_exon_sequence<R: BufReadSeek>(&self, exon: &GenomicInterval<usize>, fasta: &mut IndexedReader<R>) -> Vec<u8>  {
-        let region = interval_to_region(exon, &self.genome_map).expect("Could not get exon sequence");
+    fn get_exon_sequence<R: BufReadSeek>(
+        &self,
+        exon: &GenomicInterval<usize>,
+        fasta: &mut IndexedReader<R>,
+    ) -> Vec<u8> {
+        let region =
+            interval_to_region(exon, &self.genome_map).expect("Could not get exon sequence");
         let query = fasta.query(&region).expect("Could not query fasta");
         query.sequence().as_ref().to_vec()
     }
-
 }
 
 pub fn run_introns(

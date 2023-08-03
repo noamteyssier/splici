@@ -3,7 +3,7 @@ use bedrs::{Container, Coordinates, GenomicInterval, GenomicIntervalSet, Interna
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use noodles::core::{Position, Region};
-use std::{hash::Hash, str::from_utf8, io::BufRead};
+use std::{hash::Hash, io::BufRead, str::from_utf8};
 
 use crate::types::ExonRecord;
 
@@ -64,7 +64,9 @@ pub fn get_introns(giv_set: GenomicIntervalSet<usize>) -> Vec<GenomicInterval<us
 }
 
 pub fn merge_interval_set(giv_set: GenomicIntervalSet<usize>) -> GenomicIntervalSet<usize> {
-    giv_set.merge().expect("Could not merge interval set")
+    giv_set
+        .merge()
+        .expect("Could not merge interval set")
         .intervals()
         .into_iter()
         .cloned()
@@ -82,17 +84,13 @@ pub fn parse_exons<R: BufRead>(
     let mut transcript_records = HashMap::new();
     while let Some(Ok(record)) = reader.next() {
         if record.feature == b"exon" {
-            let exon_record = ExonRecord::from_gtf_record(
-                record, 
-                genome_id_map, 
-                gene_id_map,
-                transcript_id_map,
-            )?;
-            transcript_records.entry(exon_record.transcript())
+            let exon_record =
+                ExonRecord::from_gtf_record(record, genome_id_map, gene_id_map, transcript_id_map)?;
+            transcript_records
+                .entry(exon_record.transcript())
                 .or_insert_with(Vec::new)
                 .push(exon_record);
         }
     }
     Ok(transcript_records)
 }
-
