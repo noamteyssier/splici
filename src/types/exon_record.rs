@@ -11,14 +11,14 @@ pub struct ExonRecord {
     gene_id: usize,
     transcript_id: usize,
 }
-impl Into<GenomicInterval<usize>> for ExonRecord {
-    fn into(self) -> GenomicInterval<usize> {
-        GenomicInterval::new(self.genome_id, self.start, self.end)
+impl From<ExonRecord> for GenomicInterval<usize> {
+    fn from(record: ExonRecord) -> Self {
+        GenomicInterval::new(record.genome_id, record.start, record.end)
     }
 }
-impl Into<GenomicInterval<usize>> for &ExonRecord {
-    fn into(self) -> GenomicInterval<usize> {
-        GenomicInterval::new(self.genome_id, self.start, self.end)
+impl From<&ExonRecord> for GenomicInterval<usize> {
+    fn from(record: &ExonRecord) -> Self {
+        GenomicInterval::new(record.genome_id, record.start, record.end)
     }
 }
 impl ExonRecord {
