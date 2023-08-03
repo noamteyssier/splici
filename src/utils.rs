@@ -1,4 +1,4 @@
-use crate::{types::ExonRecord, Giv, GivSet};
+use crate::{types::ExonRecord, Giv, GivSet, IdMap, NameMap};
 use anyhow::{bail, Result};
 use bedrs::{Container, Coordinates, Internal, Merge};
 use gtftools::GtfReader;
@@ -21,7 +21,7 @@ where
 }
 
 /// Converts a `GenomicInterval` to a `Region`
-pub fn interval_to_region(giv: &Giv, genome_name_map: &HashMap<usize, Vec<u8>>) -> Result<Region> {
+pub fn interval_to_region(giv: &Giv, genome_name_map: &IdMap) -> Result<Region> {
     let name = if let Some(name) = genome_name_map.get(&giv.chr()) {
         from_utf8(name)?.to_string()
     } else {
@@ -79,9 +79,9 @@ pub fn merge_interval_set(giv_set: GivSet) -> GivSet {
 /// a Vec of `ExonRecords`
 pub fn parse_exons<R: BufRead>(
     reader: &mut GtfReader<R>,
-    genome_id_map: &mut HashMap<Vec<u8>, usize>,
-    gene_id_map: &mut HashMap<Vec<u8>, usize>,
-    transcript_id_map: &mut HashMap<Vec<u8>, usize>,
+    genome_id_map: &mut NameMap,
+    gene_id_map: &mut NameMap,
+    transcript_id_map: &mut NameMap,
 ) -> Result<HashMap<usize, Vec<ExonRecord>>> {
     let mut transcript_records = HashMap::new();
     while let Some(Ok(record)) = reader.next() {
