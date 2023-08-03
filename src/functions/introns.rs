@@ -12,7 +12,7 @@ use hashbrown::HashMap;
 use noodles::fasta::{fai, io::BufReadSeek, IndexedReader};
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     str::from_utf8,
 };
 
@@ -43,9 +43,12 @@ struct Splici {
 
     /// Stores a mapping of gene_id to merged intron sets
     merged_introns: HashMap<usize, GenomicIntervalSet<usize>>,
+
+    /// The extension length for intronic regions
+    extension: Option<usize>,
 }
 impl Splici {
-    pub fn new() -> Self {
+    pub fn new(extension: Option<usize>) -> Self {
         Self {
             genome_map: HashMap::new(),
             gene_map: HashMap::new(),
@@ -56,6 +59,7 @@ impl Splici {
             transcript_records: HashMap::new(),
             gene_introns: HashMap::new(),
             merged_introns: HashMap::new(),
+            extension,
         }
     }
 
@@ -90,7 +94,7 @@ impl Splici {
             .values()
             .map(|exon_vec| (get_gene(exon_vec), exon_vec))
             .map(|(gene_id, exon_vec)| (gene_id, build_exon_set(exon_vec)))
-            .map(|(gene_id, exon_set)| (gene_id, get_introns(exon_set)))
+            .map(|(gene_id, exon_set)| (gene_id, get_introns(exon_set, self.extension)))
             .fold(HashMap::new(), |mut gene_introns, (gene_id, intron_set)| {
                 intron_set.iter().for_each(|intron| {
                     gene_introns
@@ -113,21 +117,33 @@ impl Splici {
     }
 
     /// Writes all intronic region sequences to stdout
-    fn write_introns<R: BufReadSeek>(&self, fasta: &mut IndexedReader<R>) {
+    fn write_introns<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W)
+    where
+        R: BufReadSeek,
+        W: Write,
+    {
         self.merged_introns
             .keys()
-            .for_each(|gene_id| self.write_introns_for(*gene_id, fasta))
+            .for_each(|gene_id| self.write_introns_for(*gene_id, fasta, writer))
     }
 
     /// Writes all concatenated exon transcripts to stdout
-    fn write_exons<R: BufReadSeek>(&self, fasta: &mut IndexedReader<R>) {
+    fn write_exons<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W) 
+    where
+        R: BufReadSeek,
+        W: Write,
+    {
         self.transcript_records
             .keys()
-            .for_each(|tx| self.write_exons_for(*tx, fasta))
+            .for_each(|tx| self.write_exons_for(*tx, fasta, writer))
     }
 
     /// Writes the specific intronic region sequences for a given gene to stdout
-    fn write_introns_for<R: BufReadSeek>(&self, gene_id: usize, fasta: &mut IndexedReader<R>) {
+    fn write_introns_for<R, W>(&self, gene_id: usize, fasta: &mut IndexedReader<R>, writer: &mut W) 
+    where
+        R: BufReadSeek,
+        W: Write,
+    {
         let intron_set = self.merged_introns.get(&gene_id).unwrap();
         let gene_name = self
             .gene_map
@@ -142,19 +158,23 @@ impl Splici {
                 let region = interval_to_region(x, &self.genome_map).unwrap();
                 let query = fasta.query(&region).unwrap();
                 let seq = from_utf8(query.sequence().as_ref()).unwrap();
-                print!(">{gene_name}-I.{idx}\n{seq}\n");
+                write!(writer, ">{gene_name}-I.{idx}\n{seq}\n").expect("Could not write intron sequence");
             })
     }
 
     /// Writes the specific exon transcripts for a given transcript to stdout
-    fn write_exons_for<R: BufReadSeek>(&self, tx: usize, fasta: &mut IndexedReader<R>) {
+    fn write_exons_for<R, W>(&self, tx: usize, fasta: &mut IndexedReader<R>, writer: &mut W)
+    where
+        R: BufReadSeek,
+        W: Write,
+    {
         let transcript_name = self
             .get_transcript_name(tx)
             .expect("Could not get transcript name");
         let exon_set = self.get_exon_set(tx);
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
-        println!(">{}", transcript_name);
-        println!("{}", from_utf8(&transcript_seq).unwrap());
+        let transcript_str = from_utf8(&transcript_seq).unwrap();
+        write!(writer, ">{transcript_name}\n{transcript_str}\n").expect("Could not write exon sequence");
     }
 
     /// Convenience function to get the transcript name from the transcript id
@@ -205,13 +225,14 @@ pub fn run_introns(
 
     let handle = File::open(gtf_path).map(BufReader::new)?;
     let mut reader = GtfReader::from_bufread(handle);
+    let mut output = File::create(output_path.unwrap_or("splici.fa".to_string()))?;
 
-    let mut splici = Splici::new();
+    let mut splici = Splici::new(extension);
     splici.parse_exons(&mut reader)?;
     splici.parse_introns();
     splici.merge_introns();
-    splici.write_exons(&mut fasta);
-    splici.write_introns(&mut fasta);
+    splici.write_exons(&mut fasta, &mut output);
+    splici.write_introns(&mut fasta, &mut output);
 
     Ok(())
 }
