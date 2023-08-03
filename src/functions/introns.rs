@@ -141,7 +141,12 @@ impl Splici {
     }
 
     /// Writes the specific intronic region sequences for a given gene to stdout
-    fn write_introns_for<R, W>(&self, gene_id: usize, fasta: &mut IndexedReader<R>, writer: &mut W) -> Result<()>
+    fn write_introns_for<R, W>(
+        &self,
+        gene_id: usize,
+        fasta: &mut IndexedReader<R>,
+        writer: &mut W,
+    ) -> Result<()>
     where
         R: BufReadSeek,
         W: Write,
@@ -159,7 +164,12 @@ impl Splici {
     }
 
     /// Writes the specific exon transcripts for a given transcript to stdout
-    fn write_exons_for<R, W>(&self, tx: usize, fasta: &mut IndexedReader<R>, writer: &mut W) -> Result<()>
+    fn write_exons_for<R, W>(
+        &self,
+        tx: usize,
+        fasta: &mut IndexedReader<R>,
+        writer: &mut W,
+    ) -> Result<()>
     where
         R: BufReadSeek,
         W: Write,
