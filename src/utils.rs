@@ -1,11 +1,10 @@
+use crate::{types::ExonRecord, Giv, GivSet};
 use anyhow::{bail, Result};
-use bedrs::{Container, Coordinates, GenomicInterval, GenomicIntervalSet, Internal, Merge};
+use bedrs::{Container, Coordinates, Internal, Merge};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use noodles::core::{Position, Region};
 use std::{hash::Hash, io::BufRead, str::from_utf8};
-
-use crate::types::ExonRecord;
 
 /// Flips the K, V pairs in a `HashMap`
 /// Used to reverse the name -> idx mappings to idx -> name
@@ -22,10 +21,7 @@ where
 }
 
 /// Converts a `GenomicInterval` to a `Region`
-pub fn interval_to_region(
-    giv: &GenomicInterval<usize>,
-    genome_name_map: &HashMap<usize, Vec<u8>>,
-) -> Result<Region> {
+pub fn interval_to_region(giv: &Giv, genome_name_map: &HashMap<usize, Vec<u8>>) -> Result<Region> {
     let name = if let Some(name) = genome_name_map.get(&giv.chr()) {
         from_utf8(name)?.to_string()
     } else {
@@ -41,41 +37,38 @@ pub fn get_gene(exon_set: &[ExonRecord]) -> usize {
     exon_set[0].gene()
 }
 
-pub fn build_exon_set(exon_set: &[ExonRecord]) -> GenomicIntervalSet<usize> {
+pub fn build_exon_set(exon_set: &[ExonRecord]) -> GivSet {
     let mut exon_set = exon_set
         .iter()
         .map(std::convert::Into::into)
-        .collect::<GenomicIntervalSet<usize>>();
+        .collect::<GivSet>();
     exon_set.sort();
     exon_set
 }
 
-pub fn build_interval_set(vec: &[GenomicInterval<usize>]) -> GenomicIntervalSet<usize> {
-    let mut set = GenomicIntervalSet::from_iter(vec.iter().copied());
+pub fn build_interval_set(vec: &[Giv]) -> GivSet {
+    let mut set = GivSet::from_iter(vec.iter().copied());
     set.sort();
     set
 }
 
-pub fn get_introns(
-    giv_set: GenomicIntervalSet<usize>,
-    extension: Option<usize>,
-) -> Vec<GenomicInterval<usize>> {
-    giv_set
-        .internal()
-        .expect("could not parse introns")
+pub fn get_introns(giv_set: GivSet, extension: Option<usize>) -> Result<Vec<Giv>> {
+    let introns = giv_set
+        .internal()?
         .map(|mut intron| {
             if let Some(extension) = extension {
                 intron.extend(&extension);
             }
             intron
         })
-        .collect()
+        .collect::<Vec<Giv>>();
+    Ok(introns)
 }
 
-pub fn merge_interval_set(giv_set: GenomicIntervalSet<usize>) -> GenomicIntervalSet<usize> {
+pub fn merge_interval_set(giv_set: GivSet) -> GivSet {
     giv_set
         .merge()
-        .expect("Could not merge interval set")
+        .unwrap()
         .intervals()
         .iter()
         .copied()

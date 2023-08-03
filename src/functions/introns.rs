@@ -4,9 +4,10 @@ use crate::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
         merge_interval_set, parse_exons,
     },
+    Giv, GivSet, IdMap, NameMap,
 };
 use anyhow::Result;
-use bedrs::{Container, GenomicInterval, GenomicIntervalSet};
+use bedrs::Container;
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use noodles::fasta::{fai, io::BufReadSeek, IndexedReader};
@@ -18,31 +19,31 @@ use std::{
 
 struct Splici {
     /// Stores a mapping of genome_id to genome_name
-    genome_map: HashMap<usize, Vec<u8>>,
+    genome_map: IdMap,
 
     /// Stores a mapping of genome_name to genome_id
-    genome_names: HashMap<Vec<u8>, usize>,
+    genome_names: NameMap,
 
     /// Stores a mapping of gene_id to gene_name
-    gene_map: HashMap<usize, Vec<u8>>,
+    gene_map: IdMap,
 
     /// Stores a mapping of gene_name to gene_id
-    gene_names: HashMap<Vec<u8>, usize>,
+    gene_names: NameMap,
 
     /// Stores a mapping of transcript_id to transcript_name
-    transcript_map: HashMap<usize, Vec<u8>>,
+    transcript_map: IdMap,
 
     /// Stores a mapping of transcript_name to transcript_id
-    transcript_names: HashMap<Vec<u8>, usize>,
+    transcript_names: NameMap,
 
     /// Stores a mapping of transcript_id to exon records
     transcript_records: HashMap<usize, Vec<ExonRecord>>,
 
     /// Stores a mapping of gene_id to a vector of intron records
-    gene_introns: HashMap<usize, Vec<GenomicInterval<usize>>>,
+    gene_introns: HashMap<usize, Vec<Giv>>,
 
     /// Stores a mapping of gene_id to merged intron sets
-    merged_introns: HashMap<usize, GenomicIntervalSet<usize>>,
+    merged_introns: HashMap<usize, GivSet>,
 
     /// The extension length for intronic regions
     extension: Option<usize>,
@@ -88,22 +89,19 @@ impl Splici {
     }
 
     /// Parses the introns set for each transcript
-    pub fn parse_introns(&mut self) {
-        self.gene_introns = self
-            .transcript_records
-            .values()
-            .map(|exon_vec| (get_gene(exon_vec), exon_vec))
-            .map(|(gene_id, exon_vec)| (gene_id, build_exon_set(exon_vec)))
-            .map(|(gene_id, exon_set)| (gene_id, get_introns(exon_set, self.extension)))
-            .fold(HashMap::new(), |mut gene_introns, (gene_id, intron_set)| {
-                for intron in &intron_set {
-                    gene_introns
-                        .entry(gene_id)
-                        .or_insert_with(Vec::new)
-                        .push(*intron);
-                }
-                gene_introns
-            });
+    pub fn parse_introns(&mut self) -> Result<()> {
+        for exon_vec in self.transcript_records.values() {
+            let gene_id = get_gene(exon_vec);
+            let exon_set = build_exon_set(exon_vec);
+            let intron_set = get_introns(exon_set, self.extension)?;
+            for intron in intron_set {
+                self.gene_introns
+                    .entry(gene_id)
+                    .or_insert_with(Vec::new)
+                    .push(intron);
+            }
+        }
+        Ok(())
     }
 
     /// Merges the overlapping intronic regions for each gene
@@ -190,8 +188,8 @@ impl Splici {
     }
 
     /// Convenience function to get the exon set from the transcript id
-    fn get_exon_set(&self, tx: usize) -> GenomicIntervalSet<usize> {
-        let mut exon_set: GenomicIntervalSet<usize> = self
+    fn get_exon_set(&self, tx: usize) -> GivSet {
+        let mut exon_set: GivSet = self
             .transcript_records
             .get(&tx)
             .unwrap()
@@ -205,7 +203,7 @@ impl Splici {
     /// Builds the transcript sequence from the exon set
     fn build_transcript_sequence<R: BufReadSeek>(
         &self,
-        exon_set: GenomicIntervalSet<usize>,
+        exon_set: GivSet,
         fasta: &mut IndexedReader<R>,
     ) -> Vec<u8> {
         let mut transcript_seq: Vec<u8> = Vec::new();
@@ -236,7 +234,7 @@ pub fn run_introns(
 
     let mut splici = Splici::new(extension);
     splici.parse_exons(&mut reader)?;
-    splici.parse_introns();
+    splici.parse_introns()?;
     splici.merge_introns();
     splici.write_exons(&mut fasta, &mut output)?;
     splici.write_introns(&mut fasta, &mut output)?;
