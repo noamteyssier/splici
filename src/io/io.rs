@@ -1,4 +1,5 @@
 use anyhow::Result;
+use flate2::read::MultiGzDecoder;
 use gzp::{
     deflate::Gzip,
     par::compress::{ParCompress, ParCompressBuilder},
@@ -6,7 +7,7 @@ use gzp::{
 };
 use std::{
     fs::File,
-    io::{stdout, Write},
+    io::{stdout, Write, BufReader, BufRead, BufWriter},
 };
 
 /// Matches the output to a writer stream
@@ -17,8 +18,8 @@ pub fn match_output_stream(
 ) -> Result<Box<dyn Write>> {
     match output {
         Some(path) => {
+            let file = File::create(&path)?;
             if path.ends_with(".gz") {
-                let file = File::create(path)?;
                 let writer: ParCompress<Gzip> = ParCompressBuilder::new()
                     .num_threads(num_threads.unwrap_or(1))?
                     .compression_level(if let Some(level) = compression_level {
@@ -27,11 +28,28 @@ pub fn match_output_stream(
                         Compression::default()
                     })
                     .from_writer(file);
-                Ok(Box::new(writer))
+                let buffer = BufWriter::new(writer);
+                Ok(Box::new(buffer))
             } else {
-                Ok(Box::new(File::create(path)?))
+                let buffer = BufWriter::new(file);
+                Ok(Box::new(buffer))
             }
         }
-        None => Ok(Box::new(stdout())),
+        None => {
+            let buffer = BufWriter::new(stdout());
+            Ok(Box::new(buffer))
+        },
+    }
+}
+
+pub fn match_input_gtf(input: &str) -> Result<Box<dyn BufRead>> {
+    let handle = File::open(input)?;
+    if input.ends_with(".gz") {
+        let decoder = MultiGzDecoder::new(handle);
+        let buffer = BufReader::new(decoder);
+        Ok(Box::new(buffer))
+    } else {
+        let buffer = BufReader::new(handle);
+        Ok(Box::new(buffer))
     }
 }
