@@ -53,12 +53,17 @@ pub fn build_interval_set(vec: &[Giv]) -> GivSet {
 }
 
 pub fn get_introns(giv_set: GivSet, extension: Option<usize>) -> Result<Vec<Giv>> {
+    let strand = giv_set.records()[0].strand();
     let introns = giv_set
         .internal()?
         .map(|mut intron| {
             if let Some(extension) = extension {
                 intron.extend(&extension);
             }
+            intron
+        })
+        .map(|mut intron| {
+            intron.set_strand(strand);
             intron
         })
         .collect::<Vec<Giv>>();
@@ -99,4 +104,18 @@ pub fn parse_exons<R: BufRead>(
         }
     }
     Ok(transcript_records)
+}
+
+pub fn reverse_complement(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .rev()
+        .map(|&base| match base {
+            b'A' => b'T',
+            b'C' => b'G',
+            b'G' => b'C',
+            b'T' => b'A',
+            b'N' => b'N',
+            _ => panic!("Invalid base {}", base),
+        })
+        .collect()
 }

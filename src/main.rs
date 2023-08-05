@@ -6,13 +6,13 @@ mod utils;
 use std::time::SystemTime;
 
 use anyhow::Result;
-use bedrs::{GenomicInterval, GenomicIntervalSet};
+use bedrs::{types::StrandedGenomicIntervalSet, StrandedGenomicInterval};
 use clap::Parser;
 use cli::{Cli, Command};
 use hashbrown::HashMap;
 
-pub type Giv = GenomicInterval<usize>;
-pub type GivSet = GenomicIntervalSet<usize>;
+pub type Giv = StrandedGenomicInterval<usize>;
+pub type GivSet = StrandedGenomicIntervalSet<usize>;
 pub type NameMap = HashMap<Vec<u8>, usize>;
 pub type IdMap = HashMap<usize, Vec<u8>>;
 

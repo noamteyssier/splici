@@ -1,7 +1,9 @@
 use anyhow::{bail, Result};
-use bedrs::GenomicInterval;
+use bedrs::Strand;
 use gtftools::GtfRecord;
 use hashbrown::HashMap;
+
+use crate::Giv;
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct ExonRecord {
@@ -10,15 +12,16 @@ pub struct ExonRecord {
     end: usize,
     gene_id: usize,
     transcript_id: usize,
+    strand: Strand,
 }
-impl From<ExonRecord> for GenomicInterval<usize> {
+impl From<ExonRecord> for Giv {
     fn from(record: ExonRecord) -> Self {
-        GenomicInterval::new(record.genome_id, record.start, record.end)
+        Giv::new(record.genome_id, record.start, record.end, record.strand)
     }
 }
-impl From<&ExonRecord> for GenomicInterval<usize> {
+impl From<&ExonRecord> for Giv {
     fn from(record: &ExonRecord) -> Self {
-        GenomicInterval::new(record.genome_id, record.start, record.end)
+        Giv::new(record.genome_id, record.start, record.end, record.strand)
     }
 }
 impl ExonRecord {
@@ -28,6 +31,7 @@ impl ExonRecord {
         end: usize,
         gene_id: usize,
         transcript_id: usize,
+        strand: Strand,
     ) -> Self {
         Self {
             genome_id,
@@ -35,6 +39,7 @@ impl ExonRecord {
             end,
             gene_id,
             transcript_id,
+            strand,
         }
     }
 
@@ -79,9 +84,21 @@ impl ExonRecord {
         let transcript_id = transcript_map[&transcript_id];
         let start = record.start;
         let end = record.end;
+        let strand = match record.strand[0] {
+            b'+' => Strand::Forward,
+            b'-' => Strand::Reverse,
+            _ => bail!("Invalid strand"),
+        };
 
         // build GeneRecord
-        Ok(Self::new(genome_id, start, end, gene_id, transcript_id))
+        Ok(Self::new(
+            genome_id,
+            start,
+            end,
+            gene_id,
+            transcript_id,
+            strand,
+        ))
     }
 
     pub fn genome(&self) -> usize {

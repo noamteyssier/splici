@@ -3,12 +3,12 @@ use crate::{
     types::ExonRecord,
     utils::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
-        merge_interval_set, parse_exons,
+        merge_interval_set, parse_exons, reverse_complement,
     },
     Giv, GivSet, IdMap, NameMap,
 };
 use anyhow::Result;
-use bedrs::Container;
+use bedrs::{Container, Strand};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use log::info;
@@ -187,7 +187,12 @@ impl Splici {
         for (idx, x) in intron_iter {
             let region = interval_to_region(x, &self.genome_map).unwrap();
             let query = fasta.query(&region).unwrap();
-            let seq = from_utf8(query.sequence().as_ref()).unwrap();
+            let utf_seq = query.sequence().as_ref();
+            let seq = match x.strand() {
+                Strand::Reverse => reverse_complement(utf_seq),
+                _ => utf_seq.to_vec(),
+            };
+            let seq = from_utf8(&seq).unwrap();
             write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
         }
         Ok(())
@@ -208,7 +213,12 @@ impl Splici {
             .get_transcript_name(tx)
             .expect("Could not get transcript name");
         let exon_set = self.get_exon_set(tx);
+        let strand = exon_set.records()[0].strand();
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
+        let transcript_seq = match strand {
+            Strand::Reverse => reverse_complement(&transcript_seq),
+            _ => transcript_seq,
+        };
         let transcript_str = from_utf8(&transcript_seq)?;
         write!(writer, ">{transcript_name}\n{transcript_str}\n")?;
         Ok(())
