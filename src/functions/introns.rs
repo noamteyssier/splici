@@ -78,15 +78,20 @@ impl Splici {
             &mut self.gene_names,
             &mut self.transcript_names,
         )?;
-        self.flip_maps();
-        info!("Parsed {} genes", self.gene_names.len());
-        info!("Parsed {} transcripts", self.transcript_names.len());
+        
+        if self.transcript_records.is_empty() {
+            anyhow::bail!("No exons found in GTF (is it a properly formatted GTF?)");
+        }
 
+        self.flip_maps();
         let num_exons = self
             .transcript_records
             .values()
             .map(|exon_vec| exon_vec.len())
             .sum::<usize>();
+
+        info!("Parsed {} genes", self.gene_names.len());
+        info!("Parsed {} transcripts", self.transcript_names.len());
         info!("Parsed {} exons", num_exons);
         Ok(())
     }
