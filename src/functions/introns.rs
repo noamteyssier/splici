@@ -1,10 +1,11 @@
 use crate::{
+    io::match_output_stream,
     types::ExonRecord,
     utils::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
         merge_interval_set, parse_exons,
     },
-    Giv, GivSet, IdMap, NameMap, io::match_output_stream,
+    Giv, GivSet, IdMap, NameMap,
 };
 use anyhow::Result;
 use bedrs::Container;

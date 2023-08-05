@@ -1,6 +1,13 @@
-use std::{fs::File, io::{stdout, Write}};
 use anyhow::Result;
-use gzp::{par::compress::{ParCompress, ParCompressBuilder}, deflate::Gzip, Compression};
+use gzp::{
+    deflate::Gzip,
+    par::compress::{ParCompress, ParCompressBuilder},
+    Compression,
+};
+use std::{
+    fs::File,
+    io::{stdout, Write},
+};
 
 /// Matches the output to a writer stream
 pub fn match_output_stream(
@@ -28,4 +35,3 @@ pub fn match_output_stream(
         None => Ok(Box::new(stdout())),
     }
 }
-
