@@ -13,7 +13,7 @@ pub enum Command {
     Introns {
         /// Input GTF file to convert
         #[clap(short, long)]
-        input: String,
+        gtf: String,
 
         /// Input fasta file to query intervals from
         #[clap(short, long)]

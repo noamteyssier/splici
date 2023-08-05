@@ -17,12 +17,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Introns {
-            input,
+            gtf,
             fasta,
             output,
             extension,
         } => {
-            functions::run_introns(&input, &fasta, output, extension)?;
+            functions::run_introns(&gtf, &fasta, output, extension)?;
         }
     }
     Ok(())
