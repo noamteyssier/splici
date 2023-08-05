@@ -7,7 +7,7 @@ use gzp::{
 };
 use std::{
     fs::File,
-    io::{stdout, Write, BufReader, BufRead, BufWriter},
+    io::{stdout, BufRead, BufReader, BufWriter, Write},
 };
 
 /// Matches the output to a writer stream
@@ -38,7 +38,7 @@ pub fn match_output_stream(
         None => {
             let buffer = BufWriter::new(stdout());
             Ok(Box::new(buffer))
-        },
+        }
     }
 }
 

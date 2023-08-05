@@ -44,7 +44,14 @@ fn main() -> Result<()> {
             num_threads,
             compression_level,
         } => {
-            functions::run_introns(&gtf, &fasta, output, extension, num_threads, compression_level)?;
+            functions::run_introns(
+                &gtf,
+                &fasta,
+                output,
+                extension,
+                num_threads,
+                compression_level,
+            )?;
         }
     }
     Ok(())

@@ -1,5 +1,5 @@
 use crate::{
-    io::{match_output_stream, match_input_gtf},
+    io::{match_input_gtf, match_output_stream},
     types::ExonRecord,
     utils::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
