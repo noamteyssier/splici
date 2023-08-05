@@ -81,7 +81,13 @@ impl Splici {
         self.flip_maps();
         info!("Parsed {} genes", self.gene_names.len());
         info!("Parsed {} transcripts", self.transcript_names.len());
-        info!("Parsed {} exons", self.transcript_records.len());
+
+        let num_exons = self
+            .transcript_records
+            .values()
+            .map(|exon_vec| exon_vec.len())
+            .sum::<usize>();
+        info!("Parsed {} exons", num_exons);
         Ok(())
     }
 
