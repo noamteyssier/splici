@@ -85,6 +85,9 @@ pub fn parse_exons<R: BufRead>(
 ) -> Result<HashMap<usize, Vec<ExonRecord>>> {
     let mut transcript_records = HashMap::new();
     while let Some(record) = reader.next() {
+        if let Err(_) = record {
+            continue;
+        }
         let record = record?;
         if record.feature == b"exon" {
             let exon_record =
