@@ -78,7 +78,7 @@ impl Splici {
             &mut self.gene_names,
             &mut self.transcript_names,
         )?;
-        
+
         if self.transcript_records.is_empty() {
             anyhow::bail!("No exons found in GTF (is it a properly formatted GTF?)");
         }
