@@ -9,7 +9,11 @@ edition = "2021"
 anyhow = "1.0.72"
 bedrs = "0.0.31"
 clap = { version = "4.3.19", features = ["derive"] }
+fern = "0.6.2"
+flate2 = "1.0.26"
 gtftools = "0.1.9"
 gzp = { version="0.11.3", features=["deflate_rust"], default-features = false }
 hashbrown = "0.14.0"
+humantime = "2.1.0"
+log = "0.4.19"
 noodles = { version = "0.46.0", features = ["bgzf", "fasta", "core"] }
