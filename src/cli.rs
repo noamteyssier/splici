@@ -26,5 +26,13 @@ pub enum Command {
         /// Read length to extend introns by
         #[clap(short, long, default_value = "150")]
         extension: Option<usize>,
+
+        #[clap(short = 'j', long, value_parser)]
+        /// Number of threads to use in gzip compression
+        num_threads: Option<usize>,
+
+        #[clap(short = 'Z', long, value_parser)]
+        /// gzip compression level
+        compression_level: Option<usize>,
     },
 }
