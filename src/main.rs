@@ -1,5 +1,6 @@
 mod cli;
 mod functions;
+mod io;
 mod types;
 mod utils;
 use anyhow::Result;

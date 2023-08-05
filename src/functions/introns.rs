@@ -4,7 +4,7 @@ use crate::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
         merge_interval_set, parse_exons,
     },
-    Giv, GivSet, IdMap, NameMap,
+    Giv, GivSet, IdMap, NameMap, io::match_output_stream,
 };
 use anyhow::Result;
 use bedrs::Container;
@@ -230,7 +230,7 @@ pub fn run_introns(
 
     let handle = File::open(gtf_path).map(BufReader::new)?;
     let mut reader = GtfReader::from_bufread(handle);
-    let mut output = File::create(output_path.unwrap_or("splici.fa".to_string()))?;
+    let mut output = match_output_stream(output_path, None, None)?;
 
     let mut splici = Splici::new(extension);
     splici.parse_exons(&mut reader)?;
