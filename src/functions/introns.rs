@@ -21,17 +21,17 @@ struct Splici {
     /// Stores a mapping of genome_id to genome_name
     genome_map: IdMap,
 
-    /// Stores a mapping of genome_name to genome_id
-    genome_names: NameMap,
-
     /// Stores a mapping of gene_id to gene_name
     gene_map: IdMap,
 
-    /// Stores a mapping of gene_name to gene_id
-    gene_names: NameMap,
-
     /// Stores a mapping of transcript_id to transcript_name
     transcript_map: IdMap,
+
+    /// Stores a mapping of genome_name to genome_id
+    genome_names: NameMap,
+
+    /// Stores a mapping of gene_name to gene_id
+    gene_names: NameMap,
 
     /// Stores a mapping of transcript_name to transcript_id
     transcript_names: NameMap,
