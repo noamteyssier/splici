@@ -1,5 +1,5 @@
 use crate::{
-    io::match_output_stream,
+    io::{match_output_stream, match_input_gtf},
     types::ExonRecord,
     utils::{
         build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
@@ -11,6 +11,7 @@ use anyhow::Result;
 use bedrs::Container;
 use gtftools::GtfReader;
 use hashbrown::HashMap;
+use log::info;
 use noodles::fasta::{fai, io::BufReadSeek, IndexedReader};
 use std::{
     fs::File,
@@ -70,6 +71,7 @@ impl Splici {
     where
         R: BufRead,
     {
+        info!("Parsing exons from GTF");
         self.transcript_records = parse_exons(
             reader,
             &mut self.genome_names,
@@ -77,6 +79,9 @@ impl Splici {
             &mut self.transcript_names,
         )?;
         self.flip_maps();
+        info!("Parsed {} genes", self.gene_names.len());
+        info!("Parsed {} transcripts", self.transcript_names.len());
+        info!("Parsed {} exons", self.transcript_records.len());
         Ok(())
     }
 
@@ -91,6 +96,8 @@ impl Splici {
 
     /// Parses the introns set for each transcript
     pub fn parse_introns(&mut self) -> Result<()> {
+        let mut intron_count = 0;
+        info!("Calculating intronic regions");
         for exon_vec in self.transcript_records.values() {
             let gene_id = get_gene(exon_vec);
             let exon_set = build_exon_set(exon_vec);
@@ -100,19 +107,28 @@ impl Splici {
                     .entry(gene_id)
                     .or_insert_with(Vec::new)
                     .push(intron);
+                intron_count += 1;
             }
         }
+        info!("Identified {} introns", intron_count);
         Ok(())
     }
 
     /// Merges the overlapping intronic regions for each gene
     pub fn merge_introns(&mut self) {
+        info!("Merging overlapping intronic regions");
+        let mut merged_count = 0;
         self.merged_introns = self
             .gene_introns
             .iter()
             .map(|(gene_id, intron_vec)| (gene_id, build_interval_set(intron_vec)))
             .map(|(gene_id, intron_set)| (*gene_id, merge_interval_set(intron_set)))
+            .map(|(gene_id, intron_set)| {
+                merged_count += intron_set.len();
+                (gene_id, intron_set)
+            })
             .collect();
+        info!("Identified {} introns", merged_count);
     }
 
     /// Writes all intronic region sequences to stdout
@@ -121,9 +137,11 @@ impl Splici {
         R: BufReadSeek,
         W: Write,
     {
+        info!("Writing intronic regions");
         for gene_id in self.merged_introns.keys() {
             self.write_introns_for(*gene_id, fasta, writer)?;
         }
+        info!("Finished writing intronic regions");
         Ok(())
     }
 
@@ -133,9 +151,11 @@ impl Splici {
         R: BufReadSeek,
         W: Write,
     {
+        info!("Writing exon transcripts");
         for transcript_id in self.transcript_records.keys() {
             self.write_exons_for(*transcript_id, fasta, writer)?;
         }
+        info!("Finished writing exon transcripts");
         Ok(())
     }
 
@@ -223,15 +243,18 @@ pub fn run_introns(
     fasta_path: &str,
     output_path: Option<String>,
     extension: Option<usize>,
+    num_threads: Option<usize>,
+    compression_level: Option<usize>,
 ) -> Result<()> {
     let index_file_path = format!("{fasta_path}.fai");
     let index = fai::read(index_file_path)?;
     let reader = File::open(fasta_path).map(BufReader::new)?;
     let mut fasta = IndexedReader::new(reader, index);
 
-    let handle = File::open(gtf_path).map(BufReader::new)?;
-    let mut reader = GtfReader::from_bufread(handle);
-    let mut output = match_output_stream(output_path, None, None)?;
+    // let handle = File::open(gtf_path).map(BufReader::new)?;
+    let gtf_handle = match_input_gtf(gtf_path)?;
+    let mut reader = GtfReader::from_bufread(gtf_handle);
+    let mut output = match_output_stream(output_path, num_threads, compression_level)?;
 
     let mut splici = Splici::new(extension);
     splici.parse_exons(&mut reader)?;
