@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.72"
-bedrs = "0.0.32"
+bedrs = "0.0.33"
 clap = { version = "4.3.19", features = ["derive"] }
 fern = "0.6.2"
 flate2 = "1.0.26"
