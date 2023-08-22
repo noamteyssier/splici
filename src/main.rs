@@ -40,6 +40,7 @@ fn main() -> Result<()> {
             gtf,
             fasta,
             output,
+            t2g,
             extension,
             num_threads,
             compression_level,
@@ -47,6 +48,7 @@ fn main() -> Result<()> {
             functions::run_introns(
                 &gtf,
                 &fasta,
+                t2g,
                 output,
                 extension,
                 num_threads,

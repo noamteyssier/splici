@@ -28,6 +28,9 @@ struct Splici {
     /// Stores a mapping of transcript_id and transcript_name
     transcript_tanslater: Translater,
 
+    /// Stores a mapping for transcript_ids to gene_ids
+    transcript_to_gene: HashMap<usize, usize>,
+
     /// Stores a mapping of transcript_id to exon records
     transcript_records: HashMap<usize, Vec<ExonRecord>>,
 
@@ -49,6 +52,7 @@ impl Splici {
             genome_translater: Translater::new(),
             gene_translater: Translater::new(),
             transcript_tanslater: Translater::new(),
+            transcript_to_gene: HashMap::new(),
             transcript_records: HashMap::new(),
             gene_introns: HashMap::new(),
             merged_introns: HashMap::new(),
@@ -68,6 +72,7 @@ impl Splici {
             &mut self.genome_translater,
             &mut self.gene_translater,
             &mut self.transcript_tanslater,
+            &mut self.transcript_to_gene,
         )?;
 
         if self.transcript_records.is_empty() {
@@ -125,29 +130,42 @@ impl Splici {
     }
 
     /// Writes all intronic region sequences to stdout
-    fn write_introns<W>(&self, fasta: &mut IndexedFasta, writer: &mut W) -> Result<()>
+    fn write_introns<W>(&self, fasta: &mut IndexedFasta, writer: &mut W, t2g: &mut W) -> Result<()>
     where
         W: Write,
     {
         info!("Writing intronic regions");
         let mut seq_buffer = Vec::with_capacity(self.max_intron_len);
         for gene_id in self.merged_introns.keys() {
-            self.write_introns_for(*gene_id, fasta, writer, &mut seq_buffer)?;
+            self.write_introns_for(*gene_id, fasta, writer, t2g, &mut seq_buffer)?;
         }
         info!("Finished writing intronic regions");
         Ok(())
     }
 
     /// Writes all concatenated exon transcripts to stdout
-    fn write_exons<W>(&self, fasta: &mut IndexedFasta, writer: &mut W) -> Result<()>
+    fn write_exons<W>(&self, fasta: &mut IndexedFasta, writer: &mut W, t2g: &mut W) -> Result<()>
     where
         W: Write,
     {
         info!("Writing exon transcripts");
         for transcript_id in self.transcript_records.keys() {
             self.write_exons_for(*transcript_id, fasta, writer)?;
+            self.write_t2g_exon(*transcript_id, t2g)?;
         }
         info!("Finished writing exon transcripts");
+        Ok(())
+    }
+
+    /// Writes the exon transcript to the t2g
+    fn write_t2g_exon<W: Write>(&self, transcript_id: usize, t2g: &mut W) -> Result<()> {
+        let gene_id = self.transcript_to_gene.get(&transcript_id).unwrap();
+        let gene_name = self.gene_translater.get_name_str(*gene_id).unwrap()?;
+        let transcript_name = self
+            .transcript_tanslater
+            .get_name_str(transcript_id)
+            .unwrap()?;
+        writeln!(t2g, "{}\t{}\tS", transcript_name, gene_name)?;
         Ok(())
     }
 
@@ -157,6 +175,7 @@ impl Splici {
         gene_id: usize,
         fasta: &mut IndexedFasta,
         writer: &mut W,
+        t2g: &mut W,
         seq_buffer: &mut Vec<u8>,
     ) -> Result<()>
     where
@@ -185,6 +204,7 @@ impl Splici {
                     write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
                 }
             }
+            write!(t2g, "{}-I.{}\t{}\tU\n", gene_name, idx, gene_name)?;
         }
         Ok(())
     }
@@ -245,6 +265,7 @@ impl Splici {
 pub fn run_introns(
     gtf_path: &str,
     fasta_path: &str,
+    t2g_path: String,
     output_path: Option<String>,
     extension: Option<usize>,
     num_threads: Option<usize>,
@@ -257,13 +278,14 @@ pub fn run_introns(
     let gtf_handle = match_input_gtf(gtf_path)?;
     let mut reader = GtfReader::from_bufread(gtf_handle);
     let mut output = match_output_stream(output_path, num_threads, compression_level)?;
+    let mut t2g_output = match_output_stream(Some(t2g_path), num_threads, compression_level)?;
 
     let mut splici = Splici::new(extension);
     splici.parse_exons(&mut reader)?;
     splici.parse_introns()?;
     splici.merge_introns();
-    splici.write_exons(&mut fasta, &mut output)?;
-    splici.write_introns(&mut fasta, &mut output)?;
+    splici.write_exons(&mut fasta, &mut output, &mut t2g_output)?;
+    splici.write_introns(&mut fasta, &mut output, &mut t2g_output)?;
 
     Ok(())
 }

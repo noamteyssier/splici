@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use bedrs::Strand;
 use gtftools::GtfRecord;
+use hashbrown::HashMap;
 
 use crate::Giv;
 
@@ -49,6 +50,7 @@ impl ExonRecord {
         genome_translater: &mut Translater,
         gene_translater: &mut Translater,
         transcript_translater: &mut Translater,
+        transcript_to_gene: &mut HashMap<usize, usize>,
     ) -> Result<Self> {
         // insert gene_id into gene_map
         let gene_id = if let Some(gene_id) = record.attribute.gene_id {
@@ -82,6 +84,9 @@ impl ExonRecord {
         let genome_id = genome_translater.get_id(&record.seqname).unwrap();
         let gene_id = gene_translater.get_id(&gene_id).unwrap();
         let transcript_id = transcript_translater.get_id(&transcript_id).unwrap();
+
+        // insert transcript_id and gene_id into transcript_to_gene
+        transcript_to_gene.insert(*transcript_id, *gene_id);
 
         let start = record.start;
         let end = record.end;

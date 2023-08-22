@@ -23,6 +23,10 @@ pub enum Command {
         #[clap(short, long)]
         output: Option<String>,
 
+        /// Output Transcript to Gene mapping file
+        #[clap(short, long, default_value = "t2g.tsv")]
+        t2g: String,
+
         /// Read length to extend introns by
         #[clap(short, long, default_value = "150")]
         extension: Option<usize>,

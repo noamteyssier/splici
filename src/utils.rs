@@ -74,6 +74,7 @@ pub fn parse_exons<R: BufRead>(
     genome_translater: &mut Translater,
     gene_translater: &mut Translater,
     transcript_translater: &mut Translater,
+    transcript_to_gene: &mut HashMap<usize, usize>,
 ) -> Result<HashMap<usize, Vec<ExonRecord>>> {
     let mut transcript_records = HashMap::new();
     while let Some(record) = reader.next() {
@@ -87,6 +88,7 @@ pub fn parse_exons<R: BufRead>(
                 genome_translater,
                 gene_translater,
                 transcript_translater,
+                transcript_to_gene,
             )?;
             transcript_records
                 .entry(exon_record.transcript())
