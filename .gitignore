@@ -18,3 +18,5 @@ Cargo.lock
 
 # Ignore generated files
 out.fasta
+out.fa*
+t2g.tsv
