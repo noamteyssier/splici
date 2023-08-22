@@ -3,7 +3,6 @@ use anyhow::{bail, Result};
 use bedrs::{Container, Coordinates, Internal, Merge};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
-use noodles::core::{Position, Region};
 use std::{hash::Hash, io::BufRead, str::from_utf8};
 
 /// Flips the K, V pairs in a `HashMap`
@@ -20,17 +19,16 @@ where
     flipped
 }
 
-/// Converts a `GenomicInterval` to a `Region`
-pub fn interval_to_region(giv: &Giv, genome_name_map: &IdMap) -> Result<Region> {
-    let name = if let Some(name) = genome_name_map.get(&giv.chr()) {
+/// Converts a `GenomicInterval` to its corresponding (name, start, end) tuple
+pub fn interval_to_query(giv: &Giv, genome_name_map: &IdMap) -> Result<(String, usize, usize)> {
+    let name = if let Some(name) = genome_name_map.get(giv.chr()) {
         from_utf8(name)?.to_string()
     } else {
         bail!("Could not find genome name for id {}", giv.chr())
     };
-    let start = Position::try_from(giv.start())?;
-    let end = Position::try_from(giv.end())?;
-    let region = Region::new(name, start..=end);
-    Ok(region)
+    let start = giv.start() - 1;
+    let end = giv.end();
+    Ok((name, start, end))
 }
 
 pub fn get_gene(exon_set: &[ExonRecord]) -> usize {
@@ -106,16 +104,26 @@ pub fn parse_exons<R: BufRead>(
     Ok(transcript_records)
 }
 
-pub fn reverse_complement(seq: &[u8]) -> Vec<u8> {
-    seq.iter()
+/// Performs a reverse complement on a sequence and stores the result in a
+/// provided buffer
+pub fn reverse_complement(seq: &[u8], buffer: &mut Vec<u8>) {
+    buffer.reserve(seq.len());
+    let base_iter = seq
+        .iter()
         .rev()
-        .map(|&base| match base {
-            b'A' => b'T',
-            b'C' => b'G',
-            b'G' => b'C',
-            b'T' => b'A',
-            b'N' => b'N',
-            _ => panic!("Invalid base {}", base),
-        })
-        .collect()
+        .map(|c| if c & 2 == 0 { c ^ 21 } else { c ^ 4 });
+    buffer.extend(base_iter);
+}
+
+#[cfg(test)]
+mod testing {
+    use super::reverse_complement;
+
+    #[test]
+    fn test_rc() {
+        let seq = b"ATCGGCTA";
+        let mut buffer = Vec::new();
+        reverse_complement(seq, &mut buffer);
+        assert_eq!(buffer, b"TAGCCGAT");
+    }
 }
