@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.72"
-bedrs = "0.0.33"
+bedrs = "0.1.7"
 clap = { version = "4.3.19", features = ["derive"] }
+faiquery = "0.1.1"
 fern = "0.6.2"
 flate2 = "1.0.26"
 gtftools = "0.1.9"
@@ -17,3 +18,6 @@ hashbrown = "0.14.0"
 humantime = "2.1.0"
 log = "0.4.19"
 noodles = { version = "0.46.0", features = ["bgzf", "fasta", "core"] }
+
+[profile.release]
+debug = true
