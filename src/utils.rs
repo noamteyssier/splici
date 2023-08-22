@@ -26,7 +26,7 @@ pub fn interval_to_query(giv: &Giv, genome_name_map: &IdMap) -> Result<(String, 
     } else {
         bail!("Could not find genome name for id {}", giv.chr())
     };
-    let start = giv.start();
+    let start = giv.start() - 1;
     let end = giv.end();
     Ok((name, start, end))
 }
