@@ -1,9 +1,10 @@
 use anyhow::{bail, Result};
 use bedrs::Strand;
 use gtftools::GtfRecord;
-use hashbrown::HashMap;
 
 use crate::Giv;
+
+use super::Translater;
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct ExonRecord {
@@ -45,9 +46,9 @@ impl ExonRecord {
 
     pub fn from_gtf_record(
         record: GtfRecord,
-        genome_map: &mut HashMap<Vec<u8>, usize>,
-        gene_map: &mut HashMap<Vec<u8>, usize>,
-        transcript_map: &mut HashMap<Vec<u8>, usize>,
+        genome_translater: &mut Translater,
+        gene_translater: &mut Translater,
+        transcript_translater: &mut Translater,
     ) -> Result<Self> {
         // insert gene_id into gene_map
         let gene_id = if let Some(gene_id) = record.attribute.gene_id {
@@ -55,10 +56,6 @@ impl ExonRecord {
         } else {
             bail!("Missing Gene ID");
         };
-        if !gene_map.contains_key(&gene_id) {
-            let gene_idx = gene_map.len();
-            gene_map.insert(gene_id.clone(), gene_idx);
-        }
 
         let transcript_id = if let Some(transcript_id) = record.attribute.transcript_id {
             transcript_id
@@ -66,22 +63,26 @@ impl ExonRecord {
             bail!("Missing Transcript ID");
         };
 
-        // insert genome_id into genome_map
-        if !genome_map.contains_key(&record.seqname) {
-            let genome_idx = genome_map.len();
-            genome_map.insert(record.seqname.clone(), genome_idx);
+        if !gene_translater.has_name(&gene_id) {
+            let gene_idx = gene_translater.len();
+            gene_translater.insert(gene_id.clone(), gene_idx);
         }
 
-        // insert transcript_id into transcript_map
-        if !transcript_map.contains_key(&transcript_id) {
-            let transcript_idx = transcript_map.len();
-            transcript_map.insert(transcript_id.clone(), transcript_idx);
+        if !genome_translater.has_name(&record.seqname) {
+            let genome_idx = genome_translater.len();
+            genome_translater.insert(record.seqname.clone(), genome_idx);
+        }
+
+        if !transcript_translater.has_name(&transcript_id) {
+            let transcript_idx = transcript_translater.len();
+            transcript_translater.insert(transcript_id.clone(), transcript_idx);
         }
 
         // get genome_id and gene_id
-        let genome_id = genome_map[&record.seqname];
-        let gene_id = gene_map[&gene_id];
-        let transcript_id = transcript_map[&transcript_id];
+        let genome_id = genome_translater.get_id(&record.seqname).unwrap();
+        let gene_id = gene_translater.get_id(&gene_id).unwrap();
+        let transcript_id = transcript_translater.get_id(&transcript_id).unwrap();
+
         let start = record.start;
         let end = record.end;
         let strand = match record.strand[0] {
@@ -92,11 +93,11 @@ impl ExonRecord {
 
         // build GeneRecord
         Ok(Self::new(
-            genome_id,
+            *genome_id,
             start,
             end,
-            gene_id,
-            transcript_id,
+            *gene_id,
+            *transcript_id,
             strand,
         ))
     }

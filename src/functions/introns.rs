@@ -1,11 +1,11 @@
 use crate::{
     io::{match_input_gtf, match_output_stream},
-    types::ExonRecord,
+    types::{ExonRecord, Translater},
     utils::{
-        build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_query,
+        build_exon_set, build_interval_set, get_gene, get_introns, interval_to_query,
         merge_interval_set, parse_exons, reverse_complement,
     },
-    Giv, GivSet, IdMap, NameMap,
+    Giv, GivSet,
 };
 use anyhow::Result;
 use bedrs::{Container, Strand};
@@ -19,23 +19,14 @@ use std::{
 };
 
 struct Splici {
-    /// Stores a mapping of genome_id to genome_name
-    genome_map: IdMap,
+    /// Stores a mapping of genome_id and genome_name
+    genome_translater: Translater,
 
-    /// Stores a mapping of gene_id to gene_name
-    gene_map: IdMap,
+    /// Stores a mapping of gene_id and gene_name
+    gene_translater: Translater,
 
-    /// Stores a mapping of transcript_id to transcript_name
-    transcript_map: IdMap,
-
-    /// Stores a mapping of genome_name to genome_id
-    genome_names: NameMap,
-
-    /// Stores a mapping of gene_name to gene_id
-    gene_names: NameMap,
-
-    /// Stores a mapping of transcript_name to transcript_id
-    transcript_names: NameMap,
+    /// Stores a mapping of transcript_id and transcript_name
+    transcript_tanslater: Translater,
 
     /// Stores a mapping of transcript_id to exon records
     transcript_records: HashMap<usize, Vec<ExonRecord>>,
@@ -55,12 +46,9 @@ struct Splici {
 impl Splici {
     pub fn new(extension: Option<usize>) -> Self {
         Self {
-            genome_map: HashMap::new(),
-            gene_map: HashMap::new(),
-            transcript_map: HashMap::new(),
-            genome_names: HashMap::new(),
-            gene_names: HashMap::new(),
-            transcript_names: HashMap::new(),
+            genome_translater: Translater::new(),
+            gene_translater: Translater::new(),
+            transcript_tanslater: Translater::new(),
             transcript_records: HashMap::new(),
             gene_introns: HashMap::new(),
             merged_introns: HashMap::new(),
@@ -77,35 +65,25 @@ impl Splici {
         info!("Parsing exons from GTF");
         self.transcript_records = parse_exons(
             reader,
-            &mut self.genome_names,
-            &mut self.gene_names,
-            &mut self.transcript_names,
+            &mut self.genome_translater,
+            &mut self.gene_translater,
+            &mut self.transcript_tanslater,
         )?;
 
         if self.transcript_records.is_empty() {
             anyhow::bail!("No exons found in GTF (is it a properly formatted GTF?)");
         }
 
-        self.flip_maps();
         let num_exons = self
             .transcript_records
             .values()
             .map(|exon_vec| exon_vec.len())
             .sum::<usize>();
 
-        info!("Parsed {} genes", self.gene_names.len());
-        info!("Parsed {} transcripts", self.transcript_names.len());
+        info!("Parsed {} genes", self.gene_translater.len());
+        info!("Parsed {} transcripts", self.transcript_tanslater.len());
         info!("Parsed {} exons", num_exons);
         Ok(())
-    }
-
-    /// Flips the genome, gene, and transcript maps
-    /// This is necessary because we need O(1) lookup in the opposite direction
-    /// i.e. `genome_id` -> `genome_name` instead of `genome_name` -> `genome_id`
-    fn flip_maps(&mut self) {
-        self.genome_map = flip_map(&self.genome_names);
-        self.gene_map = flip_map(&self.gene_names);
-        self.transcript_map = flip_map(&self.transcript_names);
     }
 
     /// Parses the introns set for each transcript
@@ -185,11 +163,11 @@ impl Splici {
         W: Write,
     {
         let intron_set = self.merged_introns.get(&gene_id).unwrap();
-        let gene_name = from_utf8(self.gene_map.get(&gene_id).unwrap())?;
+        let gene_name = self.gene_translater.get_name_str(gene_id).unwrap()?;
         let intron_iter = intron_set.records().iter().enumerate();
         for (idx, x) in intron_iter {
             seq_buffer.clear();
-            let query_tuple = interval_to_query(x, &self.genome_map).unwrap();
+            let query_tuple = interval_to_query(x, self.genome_translater.get_id_map()).unwrap();
             if query_tuple.1 >= query_tuple.2 {
                 continue;
             }
@@ -216,9 +194,7 @@ impl Splici {
     where
         W: Write,
     {
-        let transcript_name = self
-            .get_transcript_name(tx)
-            .expect("Could not get transcript name");
+        let transcript_name = self.transcript_tanslater.get_name_str(tx).unwrap()?;
         let exon_set = self.get_exon_set(tx);
         let strand = exon_set.records()[0].strand();
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
@@ -234,11 +210,6 @@ impl Splici {
         let transcript_str = from_utf8(&transcript_seq)?;
         write!(writer, ">{transcript_name}\n{transcript_str}\n")?;
         Ok(())
-    }
-
-    /// Convenience function to get the transcript name from the transcript id
-    fn get_transcript_name(&self, tx: usize) -> Option<&str> {
-        self.transcript_map.get(&tx).map(|x| from_utf8(x).unwrap())
     }
 
     /// Convenience function to get the exon set from the transcript id
@@ -258,7 +229,7 @@ impl Splici {
     fn build_transcript_sequence(&self, exon_set: GivSet, fasta: &mut IndexedFasta) -> Vec<u8> {
         let mut transcript_seq: Vec<u8> = Vec::new();
         for exon in exon_set.records().iter() {
-            let query_tuple = interval_to_query(exon, &self.genome_map).unwrap();
+            let query_tuple = interval_to_query(exon, self.genome_translater.get_id_map()).unwrap();
             if query_tuple.1 >= query_tuple.2 {
                 continue;
             }

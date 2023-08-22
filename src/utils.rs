@@ -1,23 +1,12 @@
-use crate::{types::ExonRecord, Giv, GivSet, IdMap, NameMap};
+use crate::{
+    types::{ExonRecord, Translater},
+    Giv, GivSet, IdMap,
+};
 use anyhow::{bail, Result};
 use bedrs::{Container, Coordinates, Internal, Merge};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
-use std::{hash::Hash, io::BufRead, str::from_utf8};
-
-/// Flips the K, V pairs in a `HashMap`
-/// Used to reverse the name -> idx mappings to idx -> name
-pub fn flip_map<K, V>(map: &HashMap<K, V>) -> HashMap<V, K>
-where
-    K: Eq + Hash + Clone,
-    V: Eq + Hash + Clone,
-{
-    let mut flipped = HashMap::new();
-    for (key, value) in map.iter() {
-        flipped.insert(value.clone(), key.clone());
-    }
-    flipped
-}
+use std::{io::BufRead, str::from_utf8};
 
 /// Converts a `GenomicInterval` to its corresponding (name, start, end) tuple
 pub fn interval_to_query(giv: &Giv, genome_name_map: &IdMap) -> Result<(String, usize, usize)> {
@@ -82,9 +71,9 @@ pub fn merge_interval_set(giv_set: GivSet) -> GivSet {
 /// a Vec of `ExonRecords`
 pub fn parse_exons<R: BufRead>(
     reader: &mut GtfReader<R>,
-    genome_id_map: &mut NameMap,
-    gene_id_map: &mut NameMap,
-    transcript_id_map: &mut NameMap,
+    genome_translater: &mut Translater,
+    gene_translater: &mut Translater,
+    transcript_translater: &mut Translater,
 ) -> Result<HashMap<usize, Vec<ExonRecord>>> {
     let mut transcript_records = HashMap::new();
     while let Some(record) = reader.next() {
@@ -93,8 +82,12 @@ pub fn parse_exons<R: BufRead>(
         }
         let record = record?;
         if record.feature == b"exon" {
-            let exon_record =
-                ExonRecord::from_gtf_record(record, genome_id_map, gene_id_map, transcript_id_map)?;
+            let exon_record = ExonRecord::from_gtf_record(
+                record,
+                genome_translater,
+                gene_translater,
+                transcript_translater,
+            )?;
             transcript_records
                 .entry(exon_record.transcript())
                 .or_insert_with(Vec::new)
