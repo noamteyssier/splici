@@ -2,20 +2,19 @@ use crate::{
     io::{match_input_gtf, match_output_stream},
     types::ExonRecord,
     utils::{
-        build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_region,
+        build_exon_set, build_interval_set, flip_map, get_gene, get_introns, interval_to_query,
         merge_interval_set, parse_exons, reverse_complement,
     },
     Giv, GivSet, IdMap, NameMap,
 };
 use anyhow::Result;
 use bedrs::{Container, Strand};
+use faiquery::{FastaIndex, IndexedFasta};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
 use log::info;
-use noodles::fasta::{fai, io::BufReadSeek, IndexedReader};
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, Write},
     str::from_utf8,
 };
 
@@ -49,6 +48,9 @@ struct Splici {
 
     /// The extension length for intronic regions
     extension: Option<usize>,
+
+    /// Maximum intron length
+    max_intron_len: usize,
 }
 impl Splici {
     pub fn new(extension: Option<usize>) -> Self {
@@ -63,6 +65,7 @@ impl Splici {
             gene_introns: HashMap::new(),
             merged_introns: HashMap::new(),
             extension,
+            max_intron_len: 0,
         }
     }
 
@@ -136,6 +139,7 @@ impl Splici {
             .map(|(gene_id, intron_set)| (*gene_id, merge_interval_set(intron_set)))
             .map(|(gene_id, intron_set)| {
                 merged_count += intron_set.len();
+                self.max_intron_len = self.max_intron_len.max(intron_set.max_len().unwrap_or(0));
                 (gene_id, intron_set)
             })
             .collect();
@@ -143,23 +147,22 @@ impl Splici {
     }
 
     /// Writes all intronic region sequences to stdout
-    fn write_introns<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W) -> Result<()>
+    fn write_introns<W>(&self, fasta: &mut IndexedFasta, writer: &mut W) -> Result<()>
     where
-        R: BufReadSeek,
         W: Write,
     {
         info!("Writing intronic regions");
+        let mut seq_buffer = Vec::with_capacity(self.max_intron_len);
         for gene_id in self.merged_introns.keys() {
-            self.write_introns_for(*gene_id, fasta, writer)?;
+            self.write_introns_for(*gene_id, fasta, writer, &mut seq_buffer)?;
         }
         info!("Finished writing intronic regions");
         Ok(())
     }
 
     /// Writes all concatenated exon transcripts to stdout
-    fn write_exons<R, W>(&self, fasta: &mut IndexedReader<R>, writer: &mut W) -> Result<()>
+    fn write_exons<W>(&self, fasta: &mut IndexedFasta, writer: &mut W) -> Result<()>
     where
-        R: BufReadSeek,
         W: Write,
     {
         info!("Writing exon transcripts");
@@ -171,42 +174,46 @@ impl Splici {
     }
 
     /// Writes the specific intronic region sequences for a given gene to stdout
-    fn write_introns_for<R, W>(
+    fn write_introns_for<W>(
         &self,
         gene_id: usize,
-        fasta: &mut IndexedReader<R>,
+        fasta: &mut IndexedFasta,
         writer: &mut W,
+        seq_buffer: &mut Vec<u8>,
     ) -> Result<()>
     where
-        R: BufReadSeek,
         W: Write,
     {
         let intron_set = self.merged_introns.get(&gene_id).unwrap();
         let gene_name = from_utf8(self.gene_map.get(&gene_id).unwrap())?;
         let intron_iter = intron_set.records().iter().enumerate();
         for (idx, x) in intron_iter {
-            let region = interval_to_region(x, &self.genome_map).unwrap();
-            let query = fasta.query(&region).unwrap();
-            let utf_seq = query.sequence().as_ref();
-            let seq = match x.strand() {
-                Strand::Reverse => reverse_complement(utf_seq),
-                _ => utf_seq.to_vec(),
-            };
-            let seq = from_utf8(&seq).unwrap();
-            write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
+            seq_buffer.clear();
+            let query_tuple = interval_to_query(x, &self.genome_map).unwrap();
+            if query_tuple.1 >= query_tuple.2 {
+                continue;
+            }
+            let utf_seq = fasta
+                .query_unbounded(&query_tuple.0, query_tuple.1, query_tuple.2)
+                .unwrap();
+            match x.strand() {
+                Strand::Reverse => {
+                    reverse_complement(utf_seq, seq_buffer);
+                    let seq = from_utf8(&seq_buffer)?;
+                    write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
+                }
+                _ => {
+                    let seq = from_utf8(utf_seq)?;
+                    write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
+                }
+            }
         }
         Ok(())
     }
 
     /// Writes the specific exon transcripts for a given transcript to stdout
-    fn write_exons_for<R, W>(
-        &self,
-        tx: usize,
-        fasta: &mut IndexedReader<R>,
-        writer: &mut W,
-    ) -> Result<()>
+    fn write_exons_for<W>(&self, tx: usize, fasta: &mut IndexedFasta, writer: &mut W) -> Result<()>
     where
-        R: BufReadSeek,
         W: Write,
     {
         let transcript_name = self
@@ -215,8 +222,13 @@ impl Splici {
         let exon_set = self.get_exon_set(tx);
         let strand = exon_set.records()[0].strand();
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
+
         let transcript_seq = match strand {
-            Strand::Reverse => reverse_complement(&transcript_seq),
+            Strand::Reverse => {
+                let mut buffer = Vec::with_capacity(transcript_seq.len());
+                reverse_complement(&transcript_seq, &mut buffer);
+                buffer
+            }
             _ => transcript_seq,
         };
         let transcript_str = from_utf8(&transcript_seq)?;
@@ -243,18 +255,18 @@ impl Splici {
     }
 
     /// Builds the transcript sequence from the exon set
-    fn build_transcript_sequence<R: BufReadSeek>(
-        &self,
-        exon_set: GivSet,
-        fasta: &mut IndexedReader<R>,
-    ) -> Vec<u8> {
+    fn build_transcript_sequence(&self, exon_set: GivSet, fasta: &mut IndexedFasta) -> Vec<u8> {
         let mut transcript_seq: Vec<u8> = Vec::new();
-        exon_set.records().iter().for_each(|exon| {
-            let region = interval_to_region(exon, &self.genome_map).unwrap();
-            let query = fasta.query(&region).unwrap();
-            let seq = query.sequence().as_ref();
+        for exon in exon_set.records().iter() {
+            let query_tuple = interval_to_query(exon, &self.genome_map).unwrap();
+            if query_tuple.1 >= query_tuple.2 {
+                continue;
+            }
+            let seq = fasta
+                .query_unbounded(&query_tuple.0, query_tuple.1, query_tuple.2)
+                .unwrap();
             transcript_seq.extend(seq);
-        });
+        }
         transcript_seq
     }
 }
@@ -268,11 +280,9 @@ pub fn run_introns(
     compression_level: Option<usize>,
 ) -> Result<()> {
     let index_file_path = format!("{fasta_path}.fai");
-    let index = fai::read(index_file_path)?;
-    let reader = File::open(fasta_path).map(BufReader::new)?;
-    let mut fasta = IndexedReader::new(reader, index);
+    let index = FastaIndex::from_filepath(&index_file_path)?;
+    let mut fasta = IndexedFasta::new(index, fasta_path)?;
 
-    // let handle = File::open(gtf_path).map(BufReader::new)?;
     let gtf_handle = match_input_gtf(gtf_path)?;
     let mut reader = GtfReader::from_bufread(gtf_handle);
     let mut output = match_output_stream(output_path, num_threads, compression_level)?;
