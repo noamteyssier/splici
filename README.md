@@ -33,11 +33,18 @@ You can download the latest ensembl DNA and GTF using [`ggetrs ensembl ref`](htt
 ggetrs ensembl ref -D -d dna,gtf
 ```
 
+Unzip and index the reference DNA.
+
+```bash
+gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz 
+samtools faidx Homo_sapiens.GRCh38.dna.primary_assembly.fa
+```
+
 And then run `splici` to generate your splici reference fasta
 
 ```bash
 splici introns \
-    -f Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
+    -f Homo_sapiens.GRCh38.dna.primary_assembly.fa \
     -g Homo_sapiens.GRCh38.*.gtf.gz \
     -o splici.fasta.gz;
 ```
@@ -56,7 +63,7 @@ The algorithm is applied on each gene individually.
 First all transcripts for a gene are identified.
 Then all intronic regions of those transcripts are identified.
 These intronic regions are defined by the span of the transcripts
-subtracting out the exonic intervals.
+subtracting out the exonic intervals (see [internal](https://docs.rs/bedrs/latest/bedrs/traits/container/trait.Internal.html#method.internal)).
 Next, each intronic region is extended by some parameterized amount
 on both ends, which allows for alignment to junctions between intronic
 and exonic regions.
@@ -73,4 +80,3 @@ These are named by the transcript id and added to the splici reference.
 ## References
 
 1. He, D. et al. Alevin-fry unlocks rapid, accurate and memory-frugal quantification of single-cell RNA-seq data. Nat Methods 19, 316–322 (2022).
-
