@@ -68,7 +68,8 @@ Next, each intronic region is extended by some parameterized amount
 on both ends, which allows for alignment to junctions between intronic
 and exonic regions.
 Intronic regions between isoforms generally have high overlap, so a
-merging step is performed on the intronic regions to avoid redundant
+[merging](https://docs.rs/bedrs/latest/bedrs/traits/container/trait.Merge.html#method.merge)
+step is performed on the intronic regions to avoid redundant
 intervals in the final sequences.
 These intronic regions are then given a unique name and added to the
 splici reference.
