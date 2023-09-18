@@ -50,7 +50,7 @@ pub fn get_introns(giv_set: GivSet, extension: Option<usize>) -> Result<Vec<Giv>
             intron
         })
         .map(|mut intron| {
-            intron.set_strand(strand);
+            intron.set_strand(strand.unwrap_or_default());
             intron
         })
         .collect::<Vec<Giv>>();

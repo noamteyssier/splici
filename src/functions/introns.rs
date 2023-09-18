@@ -8,7 +8,7 @@ use crate::{
     Giv, GivSet,
 };
 use anyhow::Result;
-use bedrs::{Container, Strand};
+use bedrs::{Container, Coordinates, Strand};
 use faiquery::{FastaIndex, IndexedFasta};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
@@ -194,7 +194,7 @@ impl Splici {
                 .query_unbounded(&query_tuple.0, query_tuple.1, query_tuple.2)
                 .unwrap();
             match x.strand() {
-                Strand::Reverse => {
+                Some(Strand::Reverse) => {
                     reverse_complement(utf_seq, seq_buffer);
                     let seq = from_utf8(&seq_buffer)?;
                     write!(writer, ">{gene_name}-I.{idx}\n{seq}\n")?;
@@ -220,7 +220,7 @@ impl Splici {
         let transcript_seq = self.build_transcript_sequence(exon_set, fasta);
 
         let transcript_seq = match strand {
-            Strand::Reverse => {
+            Some(Strand::Reverse) => {
                 let mut buffer = Vec::with_capacity(transcript_seq.len());
                 reverse_complement(&transcript_seq, &mut buffer);
                 buffer
