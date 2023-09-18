@@ -8,7 +8,7 @@ use crate::{
     Giv, GivSet,
 };
 use anyhow::Result;
-use bedrs::{Container, Strand, Coordinates};
+use bedrs::{Container, Coordinates, Strand};
 use faiquery::{FastaIndex, IndexedFasta};
 use gtftools::GtfReader;
 use hashbrown::HashMap;
