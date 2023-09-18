@@ -1,14 +1,13 @@
 [package]
 name = "splici"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.72"
-# bedrs = "0.1.7"
-bedrs = { path = "../bedrs" }
+bedrs = "0.1.9"
 clap = { version = "4.3.19", features = ["derive"] }
 faiquery = "0.1.1"
 fern = "0.6.2"
