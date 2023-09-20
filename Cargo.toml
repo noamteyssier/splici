@@ -2,6 +2,11 @@
 name = "splici"
 version = "0.1.1"
 edition = "2021"
+description = "A tool to generate spliced and unspliced reference transcripts for sequence alignment"
+license = "MIT"
+repository = "https://github.com/noamteyssier/splici"
+categories = [ "science", "command-line-utilities" ]
+keywords = [ "genomics", "bioinformatics", "splicing", "single-cell" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,4 +25,4 @@ log = "0.4.19"
 noodles = { version = "0.46.0", features = ["bgzf", "fasta", "core"] }
 
 [profile.release]
-debug = true
+lto = true
